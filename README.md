@@ -18,7 +18,7 @@ You will first need to create the SlackBot and retrieve the **SLACK_SIGNING_SECR
 
 * Clone this repo and CD into dir:  
 ```
-git clone git@ssh.gitlab.aws.dev:dcolcott/amazon-bedrock-knowledgebase-slackbot.git
+git clone git@github.com:aws-samples/amazon-bedrock-knowledgebase-slackbot.git
 cd amazon-bedrock-knowledgebase-slackbot
 ```
 
