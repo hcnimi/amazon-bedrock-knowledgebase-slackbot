@@ -20,6 +20,7 @@
 
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
+import { execSync } from 'child_process';
 
 // Import L2 constructs
 import * as iam from 'aws-cdk-lib/aws-iam';
@@ -33,8 +34,8 @@ import * as cr from 'aws-cdk-lib/custom-resources';
 import * as logs from 'aws-cdk-lib/aws-logs';
 
 // Update the Slack App Signing Secret and Slack Bot Token:
-const SLACK_SIGNING_SECRET = "123429123456789abcdef123456789";
-const SLACK_BOT_TOKEN = "xoxb-123456789123-123456789123-abcdefg123456789hijklm";
+const SLACK_SIGNING_SECRET = "8cd295ee9d73d912bca874e96ac1d0e4";
+const SLACK_BOT_TOKEN = "xoxb-7682000467255-7901313441140-tFZYtCcfWOX5njNZjfIWxYlZ";
 
 // RAG Query MODEL_ID (Update dependent on model access and AWS Regional Support):
 // Amazon Titan Models: "amazon.titan-text-premier-v1:0"
@@ -409,7 +410,6 @@ export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
     const bedrockKbSlackbotFunction = new lambda.Function(this, 'BedrockKbSlackbotFunction', {
       runtime: lambda.Runtime.PYTHON_3_12,
       memorySize: LAMBDA_MEMORY_SIZE,
-      code: lambda.Code.fromAsset('lambda/BedrockKbSlackbotFunction'),
       environment: {
         "RAG_MODEL_ID": RAG_MODEL_ID,
         "SLACK_SLASH_COMMAND": SLACK_SLASH_COMMAND,
@@ -420,6 +420,33 @@ export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
         "GUARD_RAIL_VERSION": GUARD_RAIL_VERSION,
       },
       handler: 'index.handler',
+      code: lambda.Code.fromAsset('lambda/BedrockKbSlackbotFunction', {
+        bundling: {
+          image: lambda.Runtime.PYTHON_3_12.bundlingImage,
+          command: [],
+          local: {
+            tryBundle(outputDir: string) {
+              try {
+                execSync('pip3 --version');
+              } catch {
+                return false;
+              }
+
+              const commands = [
+                `cd lambda/BedrockKbSlackbotFunction`,
+                `pip3 install -r requirements.txt -t ${outputDir}`,
+                `cp -a . ${outputDir}`
+              ];
+
+              execSync(commands.join(' && '));
+              return true;
+            }
+          }
+        }
+      }),
+
+
+
       timeout: cdk.Duration.minutes(5)
     });
 
