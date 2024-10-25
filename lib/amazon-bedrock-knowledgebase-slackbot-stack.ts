@@ -60,19 +60,20 @@ const LAMBDA_MEMORY_SIZE = 265;
 // AWS Account params. 
 const AWS_ACCOUNT = process.env.CDK_DEFAULT_ACCOUNT;
 
-
 export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
     // define an s3 bucket
     const s3Bucket = new s3.Bucket(this, 'kb-bucket', {
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL, enforceSSL: true,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true
     });
     NagSuppressions.addResourceSuppressions(s3Bucket, [
-      { id: 'AwsSolutions-S1', reason: 'S3 access logging not required' },{ id: 'AwsSolutions-S10', reason: '' },
+      { id: 'AwsSolutions-S1', reason: 'S3 access logging not required for sample code' }
     ]);
-    
 
     // Create an IAM policy for S3 access
     const s3AccessListPolicy = new PolicyStatement({
@@ -92,13 +93,11 @@ export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
     const bedrockExecutionRolePolicy = new PolicyStatement();
     bedrockExecutionRolePolicy.addActions("bedrock:InvokeModel");
     bedrockExecutionRolePolicy.addResources(`arn:aws:bedrock:${cdk.Stack.of(this).region}::foundation-model/${EMBEDDING_MODEL}`);
-    bedrockExecutionRolePolicy.addCondition("StringEquals", {"aws:ResourceAccount": AWS_ACCOUNT});
 
     // Create an IAM policy to delete Bedrock knowledgebase
     const bedrockKBDeleteRolePolicy = new PolicyStatement();
     bedrockKBDeleteRolePolicy.addActions("bedrock:Delete*");
     bedrockKBDeleteRolePolicy.addResources(`arn:aws:bedrock:${this.region}:${this.account}:knowledge-base/*`);
-    bedrockKBDeleteRolePolicy.addCondition("StringEquals", {"aws:ResourceAccount": AWS_ACCOUNT});
 
     // Create IAM policy to call OpensearchServerless
     const BedrockOSSPolicyForKnowledgeBase = new PolicyStatement();
@@ -487,5 +486,44 @@ export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
     // Define the '/industrial/query' API resource with a POST method
     const bedrockKbSlackbotResource = bedrockKbSlackbotApi.root.addResource('slack').addResource('ask-aws');
     bedrockKbSlackbotResource.addMethod('POST')
+
+    // CDK NAG Suppression Rules - IAM
+    //============================================
+    NagSuppressions.addResourceSuppressionsByPath(
+      this,
+      [
+        '/AmazonBedrockKnowledgebaseSlackbotStack/BedrockExecutionRole/DefaultPolicy/Resource',
+        '/AmazonBedrockKnowledgebaseSlackbotStack/CreateIndexFunctionRole/DefaultPolicy/Resource',
+        '/AmazonBedrockKnowledgebaseSlackbotStack/BedrockKbSlackbotFunction/ServiceRole/DefaultPolicy/Resource',
+        '/AmazonBedrockKnowledgebaseSlackbotStack/CreateIndexFunctionRole/Resource',
+        '/AmazonBedrockKnowledgebaseSlackbotStack/AWS679f53fac002430cb0da5b7982bd2287/ServiceRole/Resource',
+        '/AmazonBedrockKnowledgebaseSlackbotStack/BedrockKbSlackbotFunction/ServiceRole/Resource'
+      ],
+      [
+        { id: 'AwsSolutions-IAM5', reason: 'IAM policy ARN limits actions to the AWS Account and AWS Service with conditions' },
+        { id: 'AwsSolutions-IAM4', reason: 'IAM managed policies used for sample/demo code' }
+      ]
+    );
+
+    // CDK NAG Suppression Rules - API GW
+    //============================================
+    NagSuppressions.addResourceSuppressionsByPath(
+      this,
+      [
+        '/AmazonBedrockKnowledgebaseSlackbotStack/BedrockKbSlackbotApi/Resource',
+        '/AmazonBedrockKnowledgebaseSlackbotStack/BedrockKbSlackbotApi/DeploymentStage.prod/Resource',
+        '/AmazonBedrockKnowledgebaseSlackbotStack/BedrockKbSlackbotApi/DeploymentStage.prod/Resource',
+        '/AmazonBedrockKnowledgebaseSlackbotStack/BedrockKbSlackbotApi/Default/slack/ask-aws/POST/Resource',
+        '/AmazonBedrockKnowledgebaseSlackbotStack/BedrockKbSlackbotApi/Default/slack/ask-aws/POST/Resource',
+      ],
+      [
+        { id: 'AwsSolutions-APIG2', reason: 'API validation is not required for demo/sample code' },
+        { id: 'AwsSolutions-APIG3', reason: 'AWS WAF is not required for sample/demo code' },
+        { id: 'AwsSolutions-APIG6', reason: 'Logging is enabled for the API' },
+        { id: 'AwsSolutions-APIG4', reason: 'API Auth is not provided in demo/sample code' },
+        { id: 'AwsSolutions-COG4', reason: 'Cognito is not being used in the sample code' }
+      ]
+    );
+
 }
 }
