@@ -32,6 +32,7 @@ import * as ops from 'aws-cdk-lib/aws-opensearchserverless';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cr from 'aws-cdk-lib/custom-resources';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import { NagSuppressions } from 'cdk-nag';
 
 // Update the Slack App Signing Secret and Slack Bot Token:
 const SLACK_SIGNING_SECRET = "8cd295ee9d73d912bca874e96ac1d0e4";
@@ -68,6 +69,10 @@ export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
     const s3Bucket = new s3.Bucket(this, 'kb-bucket', {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL
     });
+    NagSuppressions.addResourceSuppressions(s3Bucket, [
+      { id: 'AwsSolutions-S1', reason: 'S3 access logging not required' },{ id: 'AwsSolutions-S10', reason: '' },
+    ]);
+    
 
     // Create an IAM policy for S3 access
     const s3AccessListPolicy = new PolicyStatement({
@@ -87,16 +92,18 @@ export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
     const bedrockExecutionRolePolicy = new PolicyStatement();
     bedrockExecutionRolePolicy.addActions("bedrock:InvokeModel");
     bedrockExecutionRolePolicy.addResources(`arn:aws:bedrock:${cdk.Stack.of(this).region}::foundation-model/${EMBEDDING_MODEL}`);
+    bedrockExecutionRolePolicy.addCondition("StringEquals", {"aws:ResourceAccount": AWS_ACCOUNT});
 
     // Create an IAM policy to delete Bedrock knowledgebase
     const bedrockKBDeleteRolePolicy = new PolicyStatement();
     bedrockKBDeleteRolePolicy.addActions("bedrock:Delete*");
     bedrockKBDeleteRolePolicy.addResources(`arn:aws:bedrock:${this.region}:${this.account}:knowledge-base/*`);
+    bedrockKBDeleteRolePolicy.addCondition("StringEquals", {"aws:ResourceAccount": AWS_ACCOUNT});
 
     // Create IAM policy to call OpensearchServerless
     const BedrockOSSPolicyForKnowledgeBase = new PolicyStatement();
     BedrockOSSPolicyForKnowledgeBase.addActions("aoss:APIAccessAll");
-    BedrockOSSPolicyForKnowledgeBase.addActions("aoss:Delete*");
+    BedrockOSSPolicyForKnowledgeBase.addActions("aoss:DeleteAccessPolicy","aoss:DeleteCollection","aoss:DeleteLifecyclePolicy","aoss:DeleteSecurityConfig","aoss:DeleteSecurityPolicy");
     BedrockOSSPolicyForKnowledgeBase.addResources(`arn:aws:aoss:${this.region}:${this.account}:collection/*`);
 
     // Define IAM Role and add Iam policies for bedrock execution role
