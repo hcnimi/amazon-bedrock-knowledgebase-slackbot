@@ -59,14 +59,16 @@ const LAMBDA_MEMORY_SIZE = 265;
 // AWS Account params. 
 const AWS_ACCOUNT = process.env.CDK_DEFAULT_ACCOUNT;
 
-
 export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
     // define an s3 bucket
     const s3Bucket = new s3.Bucket(this, 'kb-bucket', {
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL, 
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true, enforceSSL: true,
     });
 
     // Create an IAM policy for S3 access
@@ -444,9 +446,6 @@ export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
           }
         }
       }),
-
-
-
       timeout: cdk.Duration.minutes(5)
     });
 
