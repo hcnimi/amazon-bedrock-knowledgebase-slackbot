@@ -35,8 +35,8 @@ import * as logs from 'aws-cdk-lib/aws-logs';
 import { NagSuppressions } from 'cdk-nag';
 
 // Update the Slack App Signing Secret and Slack Bot Token:
-const SLACK_SIGNING_SECRET = "8cd295ee9d73d912bca874e96ac1d0e4";
-const SLACK_BOT_TOKEN = "xoxb-7682000467255-7901313441140-tFZYtCcfWOX5njNZjfIWxYlZ";
+const SLACK_SIGNING_SECRET = %INSERT SIGNING SECRET%;
+const SLACK_BOT_TOKEN = %INSERT BOT TOKEN%;
 
 // RAG Query MODEL_ID (Update dependent on model access and AWS Regional Support):
 // Amazon Titan Models: "amazon.titan-text-premier-v1:0"
