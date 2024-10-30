@@ -32,6 +32,7 @@ import * as ops from 'aws-cdk-lib/aws-opensearchserverless';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cr from 'aws-cdk-lib/custom-resources';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import { NagSuppressions } from 'cdk-nag';
 
 // Update the Slack App Signing Secret and Slack Bot Token:
 const SLACK_SIGNING_SECRET = "8cd295ee9d73d912bca874e96ac1d0e4";
@@ -70,6 +71,9 @@ export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true, enforceSSL: true,
     });
+    NagSuppressions.addResourceSuppressions(s3Bucket, [
+      { id: 'AwsSolutions-S1', reason: 'S3 access logging not required for sample code' }
+    ]);
 
     // Create an IAM policy for S3 access
     const s3AccessListPolicy = new PolicyStatement({
@@ -98,7 +102,7 @@ export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
     // Create IAM policy to call OpensearchServerless
     const BedrockOSSPolicyForKnowledgeBase = new PolicyStatement();
     BedrockOSSPolicyForKnowledgeBase.addActions("aoss:APIAccessAll");
-    BedrockOSSPolicyForKnowledgeBase.addActions("aoss:Delete*");
+    BedrockOSSPolicyForKnowledgeBase.addActions("aoss:DeleteAccessPolicy","aoss:DeleteCollection","aoss:DeleteLifecyclePolicy","aoss:DeleteSecurityConfig","aoss:DeleteSecurityPolicy");
     BedrockOSSPolicyForKnowledgeBase.addResources(`arn:aws:aoss:${this.region}:${this.account}:collection/*`);
 
     // Define IAM Role and add Iam policies for bedrock execution role
@@ -479,5 +483,44 @@ export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
     // Define the '/industrial/query' API resource with a POST method
     const bedrockKbSlackbotResource = bedrockKbSlackbotApi.root.addResource('slack').addResource('ask-aws');
     bedrockKbSlackbotResource.addMethod('POST')
+
+    // CDK NAG Suppression Rules - IAM
+    //============================================
+    NagSuppressions.addResourceSuppressionsByPath(
+      this,
+      [
+        '/AmazonBedrockKnowledgebaseSlackbotStack/BedrockExecutionRole/DefaultPolicy/Resource',
+        '/AmazonBedrockKnowledgebaseSlackbotStack/CreateIndexFunctionRole/DefaultPolicy/Resource',
+        '/AmazonBedrockKnowledgebaseSlackbotStack/BedrockKbSlackbotFunction/ServiceRole/DefaultPolicy/Resource',
+        '/AmazonBedrockKnowledgebaseSlackbotStack/CreateIndexFunctionRole/Resource',
+        '/AmazonBedrockKnowledgebaseSlackbotStack/AWS679f53fac002430cb0da5b7982bd2287/ServiceRole/Resource',
+        '/AmazonBedrockKnowledgebaseSlackbotStack/BedrockKbSlackbotFunction/ServiceRole/Resource'
+      ],
+      [
+        { id: 'AwsSolutions-IAM5', reason: 'IAM policy ARN limits actions to the AWS Account and AWS Service with conditions' },
+        { id: 'AwsSolutions-IAM4', reason: 'IAM managed policies used for sample/demo code' }
+      ]
+    );
+
+    // CDK NAG Suppression Rules - API GW
+    //============================================
+    NagSuppressions.addResourceSuppressionsByPath(
+      this,
+      [
+        '/AmazonBedrockKnowledgebaseSlackbotStack/BedrockKbSlackbotApi/Resource',
+        '/AmazonBedrockKnowledgebaseSlackbotStack/BedrockKbSlackbotApi/DeploymentStage.prod/Resource',
+        '/AmazonBedrockKnowledgebaseSlackbotStack/BedrockKbSlackbotApi/DeploymentStage.prod/Resource',
+        '/AmazonBedrockKnowledgebaseSlackbotStack/BedrockKbSlackbotApi/Default/slack/ask-aws/POST/Resource',
+        '/AmazonBedrockKnowledgebaseSlackbotStack/BedrockKbSlackbotApi/Default/slack/ask-aws/POST/Resource',
+      ],
+      [
+        { id: 'AwsSolutions-APIG2', reason: 'API validation is not required for demo/sample code' },
+        { id: 'AwsSolutions-APIG3', reason: 'AWS WAF is not required for sample/demo code' },
+        { id: 'AwsSolutions-APIG6', reason: 'Logging is enabled for the API' },
+        { id: 'AwsSolutions-APIG4', reason: 'API Auth is not provided in demo/sample code' },
+        { id: 'AwsSolutions-COG4', reason: 'Cognito is not being used in the sample code' }
+      ]
+    );
+
 }
 }
