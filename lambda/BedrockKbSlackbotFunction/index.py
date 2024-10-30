@@ -27,7 +27,10 @@ from slack_bolt import App
 from slack_bolt.adapter.aws_lambda import SlackRequestHandler
 
 # process_before_response must be True when running on Lambda
-app = App(process_before_response=True)
+app = App(
+  token=os.environ.get("SLACK_BOT_TOKEN"),
+  signing_secret=os.environ.get("SLACK_SIGNING_SECRET"),
+  process_before_response=True)
 
 # Get the expected slack and AWS account params to local vars. 
 SLACK_SLASH_COMMAND = os.environ['SLACK_SLASH_COMMAND']
