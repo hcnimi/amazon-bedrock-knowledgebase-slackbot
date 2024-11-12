@@ -106,7 +106,6 @@ export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
       tier: ssm.ParameterTier.STANDARD
     });
 
-
     // define an s3 bucket
     const s3Bucket = new s3.Bucket(this, 'kb-bucket', {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL, 
