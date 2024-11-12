@@ -26,11 +26,45 @@ import logging
 from slack_bolt import App
 from slack_bolt.adapter.aws_lambda import SlackRequestHandler
 
-# process_before_response must be True when running on Lambda
+# Get params from SSM
+def get_parameter(parameter_name):
+    ssm = boto3.client('ssm')
+    try:
+        response = ssm.get_parameter(
+            Name=parameter_name,
+            WithDecryption=True
+        )
+        # Parse the JSON string from the parameter
+        parameter_value = response['Parameter']['Value']
+        
+        #Remove the JSON structure and extract just the value
+        try:
+            json_value = json.loads(parameter_value)
+            # Get the first value from the dictionary
+            value = next(iter(json_value.values()))
+            return value
+        except (json.JSONDecodeError, StopIteration):
+            # If parsing fails or dictionary is empty, return the raw value
+            return parameter_value
+            
+    except Exception as e:
+        print(f"Error getting parameter {parameter_name}: {str(e)}")
+        raise e
+
+# Get parameter names from environment variables
+bot_token_parameter = os.environ['SLACK_BOT_TOKEN_PARAMETER']
+signing_secret_parameter = os.environ['SLACK_SIGNING_SECRET_PARAMETER']
+
+# Retrieve the parameters
+bot_token = get_parameter(bot_token_parameter)
+signing_secret = get_parameter(signing_secret_parameter)
+
+# Initialize Slack app
 app = App(
-  token=os.environ.get("SLACK_BOT_TOKEN"),
-  signing_secret=os.environ.get("SLACK_SIGNING_SECRET"),
-  process_before_response=True)
+    process_before_response=True,
+    token=bot_token,
+    signing_secret=signing_secret
+)
 
 # Get the expected slack and AWS account params to local vars. 
 SLACK_SLASH_COMMAND = os.environ['SLACK_SLASH_COMMAND']

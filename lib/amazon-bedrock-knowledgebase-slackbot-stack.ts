@@ -33,10 +33,12 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cr from 'aws-cdk-lib/custom-resources';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import { NagSuppressions } from 'cdk-nag';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
 
 // Update the Slack App Signing Secret and Slack Bot Token:
-const SLACK_SIGNING_SECRET = %INSERT SIGNING SECRET%;
-const SLACK_BOT_TOKEN = %INSERT BOT TOKEN%;
+// const SLACK_SIGNING_SECRET = %INSERT SIGNING SECRET%;
+// const SLACK_BOT_TOKEN = %INSERT BOT TOKEN%;
 
 // RAG Query MODEL_ID (Update dependent on model access and AWS Regional Support):
 // Amazon Titan Models: "amazon.titan-text-premier-v1:0"
@@ -63,6 +65,47 @@ const AWS_ACCOUNT = process.env.CDK_DEFAULT_ACCOUNT;
 export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
+
+    // Get secrets from context or fail if not provided
+    const slackBotToken = this.node.tryGetContext('slackBotToken');
+    const slackSigningSecret = this.node.tryGetContext('slackSigningSecret');
+
+    if (!slackBotToken || !slackSigningSecret) {
+      throw new Error('Missing required context variables. Please provide slackBotToken and slackSigningSecret');
+    }
+
+    // Create secrets in Secrets Manager
+    const slackBotTokenSecret = new secretsmanager.Secret(this, 'SlackBotTokenSecret', {
+      secretName: '/slack/bot-token',
+      description: 'Slack Bot User OAuth Token',
+      secretStringValue: cdk.SecretValue.unsafePlainText(JSON.stringify({
+        token: slackBotToken
+      }))
+    });
+
+    const slackBotSigningSecret = new secretsmanager.Secret(this, 'SlackBotSigningSecret', {
+      secretName: '/slack/signing-secret',
+      description: 'Slack Signing Secret',
+      secretStringValue: cdk.SecretValue.unsafePlainText(JSON.stringify({
+        secret: slackSigningSecret
+      }))
+    });
+
+    // Create SSM parameters that reference the secrets
+    const botTokenParameter = new ssm.StringParameter(this, 'SlackBotTokenParameter', {
+      parameterName: '/slack/bot-token/parameter',
+      stringValue: `{{resolve:secretsmanager:${slackBotTokenSecret.secretName}}}`,
+      description: 'Reference to Slack Bot Token in Secrets Manager',
+      tier: ssm.ParameterTier.STANDARD
+    });
+
+    const signingSecretParameter = new ssm.StringParameter(this, 'SlackSigningSecretParameter', {
+      parameterName: '/slack/signing-secret/parameter',
+      stringValue: `{{resolve:secretsmanager:${slackBotSigningSecret.secretName}}}`,
+      description: 'Reference to Slack Signing Secret in Secrets Manager',
+      tier: ssm.ParameterTier.STANDARD
+    });
+
 
     // define an s3 bucket
     const s3Bucket = new s3.Bucket(this, 'kb-bucket', {
@@ -403,6 +446,19 @@ export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
     lambdaBedrockKbPolicy.addActions("bedrock:Retrieve");
     lambdaBedrockKbPolicy.addActions("bedrock:RetrieveAndGenerate");
     lambdaBedrockKbPolicy.addResources(`arn:aws:bedrock:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:knowledge-base/${bedrockkb.attrKnowledgeBaseId}`);
+
+    // Create an IAM policy to allow the lambda to call SSM
+    const lambdaSSMPolicy = new PolicyStatement();
+    lambdaSSMPolicy.addActions("ssm:GetParameter");
+    //lambdaSSMPolicy.addActions("ssm:GetParameters");
+    // lambdaSSMPolicy.addResources("botTokenParameter.parameterArn");
+    // lambdaSSMPolicy.addResources("signingBotSecretParameter.parameterArn");
+    lambdaSSMPolicy.addResources(`arn:aws:ssm:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:parameter${botTokenParameter.parameterName}`);
+    lambdaSSMPolicy.addResources(`arn:aws:ssm:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:parameter${signingSecretParameter.parameterName}`);
+    
+    //arn:aws:ssm:us-east-1:859498851685:parameter/slack/bot-token/parameter
+    //"arn:aws:ssm:us-east-2:123456789012:parameter/prod-*"
+    //(`arn:aws:bedrock:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:knowledge-base/${bedrockkb.attrKnowledgeBaseId}`);
   
     const lambdaReinvokePolicy = new PolicyStatement();
     lambdaReinvokePolicy.addActions("lambda:InvokeFunction");
@@ -420,8 +476,10 @@ export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
         "RAG_MODEL_ID": RAG_MODEL_ID,
         "SLACK_SLASH_COMMAND": SLACK_SLASH_COMMAND,
         "KNOWLEDGEBASE_ID": bedrockkb.attrKnowledgeBaseId,
-        "SLACK_BOT_TOKEN": SLACK_BOT_TOKEN,
-        "SLACK_SIGNING_SECRET": SLACK_SIGNING_SECRET,
+        // "SLACK_BOT_TOKEN": SLACK_BOT_TOKEN,
+        // "SLACK_SIGNING_SECRET": SLACK_SIGNING_SECRET,
+        "SLACK_BOT_TOKEN_PARAMETER": botTokenParameter.parameterName,
+        "SLACK_SIGNING_SECRET_PARAMETER": signingSecretParameter.parameterName,
         "GUARD_RAIL_ID": GUARD_RAIL_ID,
         "GUARD_RAIL_VERSION": GUARD_RAIL_VERSION,
       },
@@ -453,12 +511,16 @@ export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
       timeout: cdk.Duration.minutes(5)
     });
 
+     // Grant the Lambda function permission to read the secrets
+     slackBotTokenSecret.grantRead(bedrockKbSlackbotFunction);
+     slackBotSigningSecret.grantRead(bedrockKbSlackbotFunction);
+
     // Attach listed IAM policies to the Lambda functions Execution role
     bedrockKbSlackbotFunction.addToRolePolicy(lambdaBedrockModelPolicy)
     bedrockKbSlackbotFunction.addToRolePolicy(lambdaBedrockKbPolicy)
     bedrockKbSlackbotFunction.addToRolePolicy(lambdaReinvokePolicy)
     bedrockKbSlackbotFunction.addToRolePolicy(lambdaGRinvokePolicy)
-    
+    bedrockKbSlackbotFunction.addToRolePolicy(lambdaSSMPolicy)
 
     // Define the API Gateway resource and associate the trigger for Industrial Query Lambda function
     const bedrockKbSlackbotApi = new apigateway.LambdaRestApi(this, 'BedrockKbSlackbotApi', {
@@ -499,6 +561,19 @@ export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
       [
         { id: 'AwsSolutions-IAM5', reason: 'IAM policy ARN limits actions to the AWS Account and AWS Service with conditions' },
         { id: 'AwsSolutions-IAM4', reason: 'IAM managed policies used for sample/demo code' }
+      ]
+    );
+
+    // CDK NAG Suppression Rules - Secrets Manager
+    //============================================
+    NagSuppressions.addResourceSuppressionsByPath(
+      this,
+      [
+        '/AmazonBedrockKnowledgebaseSlackbotStack/SlackBotTokenSecret/Resource',
+        '/AmazonBedrockKnowledgebaseSlackbotStack/SlackBotSigningSecret/Resource',
+      ],
+      [
+        { id: 'AwsSolutions-SMG4', reason: 'Secret rotation is not possible in this case' },
       ]
     );
 
