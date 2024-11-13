@@ -35,8 +35,6 @@ i.e: Example Params:
 ```
 RAG_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
 SLACK_SLASH_COMMAND = "/ask-aws"
-SLACK_SIGNING_SECRET = "819ceacb626ba46d2e8ad132a37a5b4f" **update with unique slack signing secret**
-SLACK_BOT_TOKEN = "xoxb-1225118050611-6978847875861-toXVlbYNgLGR9nAnmoJ7yH6t" **update  with unique slack bot token**
 EMBEDDING_MODEL = "amazon.titan-embed-text-v1"
 COLLECTION_NAME = 'slack-bedrock-vector-db'
 VECTOR_INDEX_NAME = 'slack-bedrock-os-index'
@@ -52,7 +50,9 @@ npm run build
 
 * Deploy the CDK to your AWS Account . Region as specified by local credentials. 
 ```
-cdk deploy
+cdk deploy --context slackBotToken=**update with unique slack bot token** --context slackSigningSecret=**update with unique slack signing secret**
+
+Enter the Slack bot Token and the Slack Signing Secret value extracted when the slack app was created
 ```
 
 ### Get the AWS API Gateway prod staging URL. 
