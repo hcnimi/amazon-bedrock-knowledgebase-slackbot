@@ -36,10 +36,6 @@ import { NagSuppressions } from 'cdk-nag';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 
-// Update the Slack App Signing Secret and Slack Bot Token:
-// const SLACK_SIGNING_SECRET = %INSERT SIGNING SECRET%;
-// const SLACK_BOT_TOKEN = %INSERT BOT TOKEN%;
-
 // RAG Query MODEL_ID (Update dependent on model access and AWS Regional Support):
 // Amazon Titan Models: "amazon.titan-text-premier-v1:0"
 // Anthropic Claude2  Models:  "anthropic.claude-instant-v1" || "anthropic.claude-v2:1"
@@ -156,10 +152,8 @@ export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
     bedrockExecutionRole.addToPolicy(s3AccessListPolicy);
     bedrockExecutionRole.addToPolicy(s3AccessGetPolicy);
     bedrockExecutionRole.addToPolicy(bedrockKBDeleteRolePolicy);
-    // bedrockExecutionRole.addToPolicy(bedrockGuardRailsRolePolicy);
 
     // Create bedrock Guardrails for the slack bot
-
     const Guardrail = new bedrock.CfnGuardrail(this, 'MyGuardrail', {
       blockedInputMessaging: 'Sorry, the Ask AWS Well Architected slack bot cannot provide a response for this question',
       blockedOutputsMessaging: 'Sorry, the Ask AWS Well Architected slack bot cannot provide a response for this question',
