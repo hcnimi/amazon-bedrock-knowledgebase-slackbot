@@ -63,7 +63,7 @@ def handler(event, context):
                           "bedrock-knowledge-base-default-vector":
                           {
                               "type": "knn_vector",
-                              "dimension": 1536,
+                              "dimension": 1024,
                               "method":
                               {
                                   "name": "hnsw",

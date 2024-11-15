@@ -42,10 +42,10 @@ import * as ssm from 'aws-cdk-lib/aws-ssm';
 // Anthropic Claude3  Models:  "anthropic.claude-3-haiku-20240307-v1:0" || "anthropic.claude-3-sonnet-20240229-v1:0" || "anthropic.claude-3-5-sonnet-20240620-v1:0" 
 const RAG_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0";
 
-// RAG Embeddings Model ID
-// Amazon Titan Embedding: "amazon.titan-embed-text-v1"
+// RAG Embeddings Model ID (Update dependent on model access and AWS Regional Support):
+// Amazon Titan Embedding: "amazon.titan-embed-text-v1" || "amazon.titan-embed-text-v2:0"
 // Cohere Embedding: "cohere.embed-english-v3" // Note: Needs dimension value updated to 1024 in Vector DB.
-const EMBEDDING_MODEL = "amazon.titan-embed-text-v1";
+const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0";
 
 // Update only to suit custom Slack apps - no change needed for demo.
 const SLACK_SLASH_COMMAND = "/ask-aws";
