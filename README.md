@@ -1,15 +1,14 @@
 # Amazon Bedrock Knowledge Base Slack Chat Bot
 
-This project deploys a Slack ChatBot integration to AWS that forwards user questions from Slack to a managed RAG service provide by an Amazon Bedrock Knowledge base. All resources are deployed and managed using the AWS Cloud Development Kit (CDK). In this solution, an AWS API Gateway and AWS Lambda provide an interface to an Amazon Bedrock Knowledge base consisting of a vector database using AWS Opensearch serverless (AOSS) and an AOSS index via a custom resource. 
+This project deploys a Slack ChatBot integration to a managed RAG service provided by Amazon Bedrock Knowledge base. All resources are deployed and managed using the AWS Cloud Development Kit (CDK). In this solution, an AWS API Gateway and AWS Lambda provide an interface to an Amazon Bedrock Knowledge base consisting of a vector database using AWS Opensearch serverless (AOSS) and an AOSS index via a custom resource. 
 
-The Slack integration is provided through the [Slack Bolt Library for Python](https://slack.dev/bolt-python/) running in the Request Processor AWS Lambda function. The Slack Bolt Library handles authentication and permissions to the Slack application. Slack Bolt provides a [dedicated user guide](https://slack.dev/bolt-js/deployments/aws-lambda/) to deploy and run the library in a Lambda function.
+The Slack integration is provided through the [Slack Bolt Library for Python](https://slack.dev/bolt-python/) running in the Request Processor Lambda function. The Slack Bolt Library handles authentication and permissions to the Slack application. Slack Bolt provides a [dedicated user guide](https://slack.dev/bolt-js/deployments/aws-lambda/) to deploy and run the library in a Lambda function.
 
 ![Slack AWS Architecture](images/slack-aws-architecture.png)
 
 A detailed guide to deploy the project and the Slack App are given in the AWS blog: Create a generative AI assistant with Slack and Amazon Bedrock.
 
-In this example, the Bedrock Knowledge base is populated with all of the public documentation of the [AWS Well-Architected Framework](https://docs.aws.amazon.com/wellarchitected/latest/framework/welcome.html). The SlackBot has been given a Slash Command function /ask-aws so ffromorm within Slack, users are able to ask any AWS design, architecture, security and other best practice related questions.
-
+In this example, the Bedrock Knowledge base is populated with all of the public documentation of the [AWS Well-Architected Framework](https://docs.aws.amazon.com/wellarchitected/latest/framework/welcome.html). The SlackBot has been given a Slash Command function /ask-aws where users are able to ask any AWS design, architecture, security and other best practice related questions.
 
 # Giving Feedback and Contributions
 
