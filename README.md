@@ -6,7 +6,7 @@ The Slack integration is provided through the [Slack Bolt Library for Python](ht
 
 ![Slack AWS Architecture](images/slack-aws-architecture.png)
 
-A detailed guide to deploy the project and the Slack App are given in the AWS blog: Create a generative AI assistant with Slack and Amazon Bedrock.
+A detailed guide to deploy the project and the Slack App are given in the AWS blog: [Create a generative AI assistant with Slack and Amazon Bedrock](https://aws.amazon.com/blogs/machine-learning/create-a-generative-ai-assistant-with-slack-and-amazon-bedrock/).
 
 In this example, the Bedrock Knowledge base is populated with all of the public documentation of the [AWS Well-Architected Framework](https://docs.aws.amazon.com/wellarchitected/latest/framework/welcome.html). The SlackBot has been given a Slash Command function /ask-aws where users are able to ask any AWS design, architecture, security and other best practice related questions.
 
