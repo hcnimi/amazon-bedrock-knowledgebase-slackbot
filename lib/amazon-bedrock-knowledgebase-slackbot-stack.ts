@@ -63,8 +63,8 @@ export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
     super(scope, id, props);
 
     // Get secrets from context or fail if not provided
-    const slackBotToken = this.node.tryGetContext('slackBotToken');
-    const slackSigningSecret = this.node.tryGetContext('slackSigningSecret');
+    const slackBotToken = this.node.tryGetContext('slackBotToken') || process.env.SLACK_BOT_TOKEN;
+    const slackSigningSecret = this.node.tryGetContext('slackSigningSecret') || process.env.SLACK_SIGNING_SECRET;
 
     if (!slackBotToken || !slackSigningSecret) {
       throw new Error('Missing required context variables. Please provide slackBotToken and slackSigningSecret');
@@ -386,6 +386,9 @@ export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
 
     // Ensure vectorIndex depends on collection
     vectorIndex.node.addDependency(osCollection);
+    vectorIndex.node.addDependency(aossAccessPolicy);
+    vectorIndex.node.addDependency(aossNetworkPolicy);
+    vectorIndex.node.addDependency(aossEncryptionPolicy);
 
     // Define a Bedrock knowledge base with type opensearch serverless and titan for embedding model
     const bedrockkb = new bedrock.CfnKnowledgeBase(this, 'bedrockkb', {
@@ -416,7 +419,43 @@ export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
     bedrockkb.node.addDependency(createIndexFunction)
     bedrockkb.node.addDependency(osCollection)
     bedrockkb.node.addDependency(bedrockExecutionRole)
+
+    const apiGatewayLoggingRole = new iam.Role(this, 'ApiGatewayLoggingRole', {
+      assumedBy: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+    });
     
+    // Add inline policy with specific permissions
+    const loggingPolicy = new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'logs:CreateLogGroup',
+        'logs:CreateLogStream',
+        'logs:DescribeLogGroups',
+        'logs:DescribeLogStreams',
+        'logs:PutLogEvents',
+        'logs:GetLogEvents',
+        'logs:FilterLogEvents'
+      ],
+      resources: [
+        `arn:aws:logs:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:log-group:/aws/apigateway/`,
+        `arn:aws:logs:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:log-group:/aws/apigateway/*`,
+        `arn:aws:logs:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:log-group:/aws/apigateway/*:log-stream:*`
+      ]
+    });
+
+    apiGatewayLoggingRole.addToPolicy(loggingPolicy);
+
+    NagSuppressions.addResourceSuppressions(apiGatewayLoggingRole, [
+      {
+        id: 'AwsSolutions-IAM5',
+        reason: 'API Gateway needs wildcard permissions to create and manage CloudWatch log groups dynamically'
+      }
+    ], true);
+    // Update API Gateway Account settings
+    const apiGatewayAccount = new apigateway.CfnAccount(this, 'ApiGatewayAccount', {
+      cloudWatchRoleArn: apiGatewayLoggingRole.roleArn
+    });
+
     // Define a bedrock knowledge base data source with S3 bucket
     const bedrockKbDataSource = new bedrock.CfnDataSource(this, 'bedrockKbDataSource', {
       name: BEDROCK_KB_DATA_SOURCE,
@@ -428,6 +467,9 @@ export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
         }
       }
     });
+
+    // Add dependency to ensure role is created first
+    apiGatewayAccount.node.addDependency(apiGatewayLoggingRole);
     
     // Create an IAM policy to allow the lambda to invoke models in Amazon Bedrock
     const lambdaBedrockModelPolicy = new PolicyStatement()
@@ -475,6 +517,7 @@ export class AmazonBedrockKnowledgebaseSlackbotStack extends cdk.Stack {
         "SLACK_SIGNING_SECRET_PARAMETER": signingSecretParameter.parameterName,
         "GUARD_RAIL_ID": GUARD_RAIL_ID,
         "GUARD_RAIL_VERSION": GUARD_RAIL_VERSION,
+        "AWS_ACCOUNT": AWS_ACCOUNT!
       },
       handler: 'index.handler',
       code: lambda.Code.fromAsset('lambda/BedrockKbSlackbotFunction', {
