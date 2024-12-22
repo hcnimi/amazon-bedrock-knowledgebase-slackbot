@@ -1,4 +1,4 @@
-# Amazon Bedrock Knowledge Base Slack Chat Bot
+# (updated version w/bug fixes) Amazon Bedrock Knowledge Base Slack Chat Bot
 
 This project deploys a Slack ChatBot integration to a managed RAG service provided by Amazon Bedrock Knowledge base. All resources are deployed and managed using the AWS Cloud Development Kit (CDK). In this solution, an AWS API Gateway and AWS Lambda provide an interface to an Amazon Bedrock Knowledge base consisting of a vector database using AWS Opensearch serverless (AOSS) and an AOSS index via a custom resource. 
 
